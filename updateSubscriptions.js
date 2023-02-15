@@ -2,10 +2,10 @@ require('dotenv').config();
 const secret = process.env.API_KEY;
 const stripe = require('stripe')(secret);
 
-const oldPlanID = "wokowoko";
-const newPlanID = "ukentlig";
+const oldPlanID = "monthly2020";
+const newPlanID = "monthly2023";
 
-const dryrun = true;
+const dryrun = false;
 var affectedSubscriptions = 0;
 const excludedStatuses = ["incomplete_expired", "canceled"];
 
@@ -18,13 +18,20 @@ function getSubscriptions() {
                     const cancel_at_period_end = incomingSubscription.cancel_at_period_end;
                     console.log(`${dryrun ? '(Dryrun) - ' : ""}Moving ${incomingSubscription.id} from ${incomingSubscription.plan.id} to ${newPlanID}. Quantity ${incomingSubscription.quantity}`);
 
-                    if (!dryrun && !excludedStatuses.includes(incomingSubscription.status)) {
+                    if (!dryrun) {
                         affectedSubscriptions++;
                         const subscriptionItemID = incomingSubscription.items.data[0].id;
                         
                         stripe.subscriptionItems.update(
                             subscriptionItemID,
-                            { price: newPlanID, proration_behavior: "none", quantity: incomingSubscription.quantity, cancel_at_period_end: cancel_at_period_end })
+                            { price: newPlanID, proration_behavior: "none", quantity: incomingSubscription.quantity });
+                        
+                        if (cancel_at_period_end) {
+                            stripe.subscriptions.update(
+                                incomingSubscription.id,
+                                {cancel_at_period_end: cancel_at_period_end}
+                            );
+                        } 
                     } else affectedSubscriptions++;
                 }
             }
